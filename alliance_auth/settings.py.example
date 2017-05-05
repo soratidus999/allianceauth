@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'services.modules.phpbb3',
     'services.modules.xenforo',
     'services.modules.teamspeak3',
+	'services.modules.mediawiki'
 ]
 
 MIDDLEWARE = [
@@ -558,6 +559,15 @@ FLEETUP_APP_KEY = os.environ.get('AA_FLEETUP_APP_KEY', '')
 FLEETUP_USER_ID = os.environ.get('AA_FLEETUP_USER_ID', '')
 FLEETUP_API_ID = os.environ.get('AA_FLEETUP_API_ID', '')
 FLEETUP_GROUP_ID = os.environ.get('AA_FLEETUP_GROUP_ID', '')
+
+######################################
+# Mediawiki Configuration
+######################################
+# MEDIAWIKI_URL - The base url of the mediawiki install (no trailing slash)
+######################################
+MEDIAWIKI_URL = os.environ.get('MEDIAWIKI_URL', 'http://example.com/wiki')
+MEDIAWIKI_USER = os.environ.get('MEDIAWIKI_USER', 'username')
+MEDIAWIKI_PASSWORD os.environ.get ('MEDIAWIKI_PASSWORD', 'password')
 
 #####################################
 # Logging Configuration
