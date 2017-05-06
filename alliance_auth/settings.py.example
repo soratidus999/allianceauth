@@ -563,11 +563,13 @@ FLEETUP_GROUP_ID = os.environ.get('AA_FLEETUP_GROUP_ID', '')
 ######################################
 # Mediawiki Configuration
 ######################################
-# MEDIAWIKI_URL - The base url of the mediawiki install (no trailing slash)
+# MEDIAWIKI_URL - The base url of the mediawiki install (no trailing slash) (AND NO API.PHP)
+# MEDIAWIKI_BOTUSER - A bot account created by admin, granted priveleges, syntax username@botname .../index.php/Special:BotPasswords
+# MEDIAWIKI_BOTPASSWORD - ^^ The bot users password
 ######################################
 MEDIAWIKI_URL = os.environ.get('MEDIAWIKI_URL', 'http://example.com/wiki')
-MEDIAWIKI_USER = os.environ.get('MEDIAWIKI_USER', 'username')
-MEDIAWIKI_PASSWORD os.environ.get ('MEDIAWIKI_PASSWORD', 'password')
+MEDIAWIKI_BOTUSER = os.environ.get('MEDIAWIKI_USER', 'Admin@allianceauth')
+MEDIAWIKI_BOTPASSWORD os.environ.get ('MEDIAWIKI_PASSWORD', 'password')
 
 #####################################
 # Logging Configuration
