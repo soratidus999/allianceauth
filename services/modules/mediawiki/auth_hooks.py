@@ -7,6 +7,9 @@ from alliance_auth import hooks
 
 from .urls import urlpatterns
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MediawikiService(ServicesHook):
     def __init__(self):
@@ -14,6 +17,7 @@ class MediawikiService(ServicesHook):
 		self.name = 'mediawiki'
         self.urlpatterns = urlpatterns
         self.service_url = settings.MEDIAWIKI_URL
+		self.access_perm = 'mediawiki.access_mediawiki'
 
 		def title(self):
 		return 'Mediawiki Wiki'
