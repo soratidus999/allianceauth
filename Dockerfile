@@ -22,9 +22,12 @@ RUN sed -i "s@ESI_SSO_CLIENT_ID = ''@ESI_SSO_CLIENT_ID = ''@" /home/allianceserv
 RUN sed -i "s@ESI_SSO_CLIENT_SECRET = ''@ESI_SSO_CLIENT_SECRET = ''@" /home/allianceserver/myauth/myauth/settings/local.py
 RUN sed -i "s@ESI_SSO_CALLBACK_URL = ''@ESI_SSO_CALLBACK_URL = ''@" /home/allianceserver/myauth/myauth/settings/local.py
 
-RUN cat /home/allianceserver/myauth/myauth/settings/local.py
+# email config
+# email config
+# email config
+# email config
 
-#migration requires valid SSO and email details from here down.
+#migration requires valid SSO from here down.
 RUN python /home/allianceserver/myauth/manage.py migrate
 
 #collect static files and take ownership.
@@ -32,13 +35,12 @@ RUN mkdir -p /var/www/myauth/static
 RUN python /home/allianceserver/myauth/manage.py collectstatic
 RUN chown -R www-data:www-data /var/www/myauth/static
 
-#grant allianceserver rights, processes should run from now as allianceserver? does this matter in a docker?
+#grant allianceserver rights, processes should run from now via supervisor as allianceserver
 RUN chown -R allianceserver:allianceserver /home/allianceserver/myauth
 
 #supervisor gunicorn config has to be changed slightly to bind to all network interfaces, because docker
 RUN sed -i "s@command=/usr/local/bin/gunicorn myauth.wsgi --workers=3 --timeout 120@command=/usr/local/bin/gunicorn myauth.wsgi --workers=3 --timeout 120 -b 0.0.0.0:8000@" /home/allianceserver/myauth/supervisor.conf
-
 RUN ln -s /home/allianceserver/myauth/supervisor.conf /etc/supervisor/conf.d/myauth.conf
-CMD ["/usr/bin/supervisord", "-n"]
 
-#CMD cd /home/allianceserver/myauth && gunicorn myauth.wsgi --workers=4 --timeout 120 -b 0.0.0.0:8000
+EXPOSE 8000
+CMD ["/usr/bin/supervisord", "-n"]
