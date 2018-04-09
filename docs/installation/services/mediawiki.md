@@ -1,6 +1,17 @@
 # Mediawiki
 
-Add `services.modules.mediawiki` to your `INSTALLED_APPS` list and run migrations before continuing with this guide to ensure the service is installed.
+Media wiki is an open source Wiki
+
+## Prepare your Settings
+
+- Add `services.modules.mediawiki` to your `INSTALLED_APPS` list.
+ - Append the following to your auth project's settings file:
+ 
+    # Jabber Configuration
+    MEDIAWIKI_URL = ''
+    MEDIAWIKI_BOTUSER = ''
+    MEDIAWIKI_BOTPASSWORD = ''
+
 
 ## Overview
 https://www.mediawiki.org/wiki/MediaWiki
@@ -18,22 +29,20 @@ Mediawiki by default is entirely open for user registration and page editing.
 
 https://www.mediawiki.org/wiki/Manual:Preventing_access#Restrict_account_creation Provides a baseline config and an example of procedure
 
-Apply the simple private wiki config and move on to allowing AA to have access
+Apply the simple private wiki config
 
-logged in as the wiki admin, visit Special:BotPasswords
+Log into the Wiki Admin, visit Special:BotPasswords
 
-create a bot user and password with the following rights
+Create a bot user and password with the following rights
 
-Block and unblock users
-Create Accounts
+- Block and unblock users
+- Create Accounts
 
-And add the IP of your AA base install to the allowed list
+Add the IP of your AA base install to the allowed list
 
 the bot user will be created with the syntax username@botusername
 
-punch this and your password into settings.py in the appropriate location
+This needs to be entered into the MEDIAWIKI_BOTUSER and MEDIAWIKI_BOTPASSWORD configs.
 
 ## Setup Complete
-You may want to configure mediawiki past its default, as standard its very barebones.
-
-Hopefully i get to some example skins, extensions etc.
+You may want to configure mediawiki past its default,
