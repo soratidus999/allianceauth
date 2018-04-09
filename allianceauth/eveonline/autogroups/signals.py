@@ -2,6 +2,7 @@ import logging
 from django.dispatch import receiver
 from django.db.models.signals import pre_save, post_save, pre_delete, m2m_changed
 from allianceauth.authentication.models import UserProfile, State
+from allianceauth.eveonline.models import EveCharacter
 
 from .models import AutogroupsConfig
 
@@ -45,9 +46,7 @@ def check_groups_on_profile_update(sender, instance, created, *args, **kwargs):
     """
     Trigger check when main character or state changes.
     """
-    update_fields = kwargs.pop('update_fields', []) or []
-    if 'main_character' in update_fields or 'state' in update_fields:
-        AutogroupsConfig.objects.update_groups_for_user(instance.user)
+    AutogroupsConfig.objects.update_groups_for_user(instance.user)
 
 
 @receiver(m2m_changed, sender=AutogroupsConfig.states.through)
@@ -64,3 +63,13 @@ def autogroups_states_changed(sender, instance, action, reverse, model, pk_set, 
             except State.DoesNotExist:
                 # Deleted States handled by the profile state change
                 pass
+
+
+@receiver(post_save, sender=EveCharacter)
+def check_groups_on_character_update(sender, instance, created, *args, **kwargs):
+    if not created:
+        try:
+            profile = UserProfile.objects.prefetch_related('user').get(main_character_id=instance.pk)
+            AutogroupsConfig.objects.update_groups_for_user(profile.user)
+        except UserProfile.DoesNotExist:
+            pass

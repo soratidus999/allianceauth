@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def get_users_for_state(state: State):
     return User.objects.select_related('profile').prefetch_related('profile__main_character')\
-            .filter(profile__state__pk=state.pk)
+            .filter(profile__state_id=state.pk)
 
 
 class AutogroupsConfigManager(models.Manager):
@@ -39,7 +39,12 @@ class AutogroupsConfigManager(models.Manager):
         if state is None:
             state = user.profile.state
         for config in self.filter(states=state):
-                config.update_group_membership_for_user(user)
+            # grant user new groups for their state
+            config.update_group_membership_for_user(user)
+        for config in self.exclude(states=state):
+            # ensure user does not have groups from previous state
+            config.remove_user_from_alliance_groups(user)
+            config.remove_user_from_corp_groups(user)
 
 
 class AutogroupsConfig(models.Model):

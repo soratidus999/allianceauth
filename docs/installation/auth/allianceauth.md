@@ -35,11 +35,16 @@ It's recommended to use a database service instead of sqlite. Many options are a
 
 Ubuntu:
 
-    apt-get install mariadb-server mysql-client libmysqlclient-dev
+    apt-get install mariadb-server mariadb-client libmysqlclient-dev
 
 CentOS:
 
     yum install mariadb-server mariadb-devel mariadb
+
+```eval_rst
+.. note::
+   If you don't plan on running the database on the same server as auth you still need to install the libmysqlclient-dev package on Ubuntu or mariadb-devel package on CentOS.
+```
 
 ### Redis and Other Tools
 
@@ -70,6 +75,12 @@ Alliance Auth needs a MySQL user account and database. Open an SQL shell with `m
     GRANT ALL PRIVILEGES ON alliance_auth . * TO 'allianceserver'@'localhost';
 
 Close the SQL shell and secure your database server with the `mysql_secure_installation` command.
+
+If you're updating from v1, populate this database with a copy of the data from your v1 database.
+
+    mysqldump -u root -p v1_database_name_here | mysql -u root -p alliance_auth
+
+Note this command will prompt you for the root password twice.
 
 ## Auth Install
 
