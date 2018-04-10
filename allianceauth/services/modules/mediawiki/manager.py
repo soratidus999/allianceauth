@@ -64,5 +64,5 @@ class MediawikiManager:
                 csrf_cookie.update(request_csrf_token.cookies)
                 ## Apply user block change
                 request_blockuser_data = {'action': 'block', 'format': 'json', 'user': username, 'expiry': 'never', 'reason': 'AA Disable Account', 'token': csrf_token}
-                response = requests.post(settings.MEDIAWIKI_URL, data=request_blockuser_data,cookies=csrf_cookie
+                response = requests.post(settings.MEDIAWIKI_URL, data=request_blockuser_data,cookies=csrf_cookie)
 
