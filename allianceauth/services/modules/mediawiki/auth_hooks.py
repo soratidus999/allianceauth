@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.template.loader import render_to_string
 
-from alliance_auth import hooks
+from allianceauth import hooks
 from allianceauth.services.hooks import ServicesHook
 
 from .tasks import Mediawikitasks
