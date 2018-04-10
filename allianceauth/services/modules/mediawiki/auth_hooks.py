@@ -26,10 +26,10 @@ class MediawikiService(ServicesHook):
 
     def render_services_ctrl(self, request):
         urls = self.Urls()
-        urls.auth_activate = mediawiki:activate
-        urls.auth_deactivate = mediawiki:deactivate
-        urls.auth_reset_password = mediawiki:reset_password
-        urls.auth_set_password = mediawiki:set_password
+        urls.auth_activate = 'mediawiki:activate'
+        urls.auth_deactivate = 'mediawiki:deactivate'
+        urls.auth_reset_password = 'mediawiki:reset_password'
+        urls.auth_set_password = 'mediawiki:set_password'
         return render_to_string(self.service_ctrl_template, {
             'service_name': self.title,
             'urls': urls,
