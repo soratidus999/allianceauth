@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from allianceauth import hooks
 from allianceauth.services.hooks import ServicesHook
 
-from .tasks import Mediawikitasks
+from .tasks import MediawikiTasks
 from .models import MediawikiUser
 from .urls import urlpatterns
 
@@ -19,6 +19,7 @@ class MediawikiService(ServicesHook):
         self.urlpatterns = urlpatterns
         self.service_url = settings.MEDIAWIKI_URL
         self.access_perm = 'mediawiki.access_mediawiki'
+        self.service_ctrl_template = 'services/mediawiki/mediawiki_service_ctrl.html'
     """
     Overload base methods here to implement functionality
     """
@@ -45,5 +46,5 @@ class MediawikiService(ServicesHook):
 
 
 @hooks.register('services_hook')
-def register_service():
-    return ExampleService()
+def register_mediawiki_service():
+    return MediawikiService()

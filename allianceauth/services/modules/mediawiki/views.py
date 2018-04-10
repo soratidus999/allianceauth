@@ -19,24 +19,22 @@ ACCESS_PERM = 'mediawiki.access_mediawiki'
 
 def activate_mediawiki(request):
     logger.debug("activate_mediawiki called by user %s" % request.user)
-	character = request.user.profile.main_character
-	logger.debug("Adding mediawiki user for user %s with main character %s" % (request.user, character))
-	result = MediaiwkiManager.add_user(MediawikiTaks.get_username(request.user),password,request.user.email,MediawikiTaks.get_username(request.user), logout=True):
-	
+    character = request.user.profile.main_character
+    logger.debug("Adding mediawiki user for user %s with main character %s" % (request.user, character))
+    result = MediaiwkiManager.add_user(MediawikiTaks.get_username(request.user),password,request.user.email,MediawikiTaks.get_username(request.user), logout=True):
+    
 @login_required
 @permission_required(ACCESS_PERM)
 def deactivate_mediawiki(request):
-	logged.debug("")
-	
-	
-	
+    logged.debug("")
+
 @login_required
 @permission_required(ACCESS_PERM)
 def reset_mediawiki_password(request):
-	logger.debug("")
-	
-	
+    logger.debug("")
+
+
 @login_required
 @permission_required(ACCESS_PERM)
-def set_mediawiki_password(request);
-	logger.debug("")
+def set_mediawiki_password(request):
+    logger.debug("")

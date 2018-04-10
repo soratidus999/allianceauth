@@ -2,7 +2,7 @@ from django.conf.urls import url, include
 
 from . import views
 
-app_name - 'mediawiki'
+app_name = 'mediawiki'
 
 module_urls = [
     # mediawiki Service Control
