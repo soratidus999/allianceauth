@@ -16,17 +16,16 @@ ACCESS_PERM = 'mediawiki.access_mediawiki'
 
 @login_required
 @permission_required(ACCESS_PERM)
-
 def activate_mediawiki(request):
     logger.debug("activate_mediawiki called by user %s" % request.user)
     character = request.user.profile.main_character
     logger.debug("Adding mediawiki user for user %s with main character %s" % (request.user, character))
-    result = MediaiwkiManager.add_user(MediawikiTaks.get_username(request.user),password,request.user.email,MediawikiTaks.get_username(request.user), logout=True):
+    result = MediawikiManager.add_user(MediawikiTasks.get_username(request.user),password,request.user.email,MediawikiTasks.get_username(request.user), logout=True)
     
 @login_required
 @permission_required(ACCESS_PERM)
 def deactivate_mediawiki(request):
-    logged.debug("")
+    logger.debug("")
 
 @login_required
 @permission_required(ACCESS_PERM)

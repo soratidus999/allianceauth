@@ -7,7 +7,7 @@ from celery import shared_task
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import NameFormatter
 from .manager import MediawikiManager
-from .models import MediawikiManager
+from .models import MediawikiUser
 
 logger = logging.getLogger(__name__)
 

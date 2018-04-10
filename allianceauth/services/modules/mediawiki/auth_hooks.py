@@ -25,18 +25,11 @@ class MediawikiService(ServicesHook):
     """
 
     def render_services_ctrl(self, request):
-        """
-        Example for rendering the service control panel row
-        You can override the default template and create a
-        custom one if you wish.
-        :param request:
-        :return:
-        """
         urls = self.Urls()
-        urls.auth_activate = 'auth_mediawiki_activate'
-        urls.auth_deactivate = 'auth_mediawiki_deactivate'
-        urls.auth_reset_password = 'auth_mediawiki_reset_password'
-        urls.auth_set_password = 'auth_mediawiki_set_password'
+        urls.auth_activate = mediawiki:activate
+        urls.auth_deactivate = mediawiki:deactivate
+        urls.auth_reset_password = mediawiki:reset_password
+        urls.auth_set_password = mediawiki:set_password
         return render_to_string(self.service_ctrl_template, {
             'service_name': self.title,
             'urls': urls,
