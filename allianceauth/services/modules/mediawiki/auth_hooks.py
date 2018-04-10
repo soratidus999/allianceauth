@@ -34,7 +34,7 @@ class MediawikiService(ServicesHook):
             'service_name': self.title,
             'urls': urls,
             'service_url': self.service_url,
-            'username': request.user.mediawiki.username
+            'username': request.user.mediawiki.username if MediawikiTasks.has_account(request.user) else ''
         }, request=request)
 
 

@@ -20,3 +20,10 @@ class MediawikiTasks:
     def get_username(user):
         from .auth_hooks import MediawikiService
         return NameFormatter(MediawikiService(), user).format_name()
+
+    @staticmethod
+    def has_account(user):
+        try:
+            return user.mediawiki.username != ''
+        except ObjectDoesNotExist:
+            return False
