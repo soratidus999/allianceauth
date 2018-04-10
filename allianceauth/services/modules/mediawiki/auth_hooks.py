@@ -19,11 +19,14 @@ class MediawikiService(ServicesHook):
         self.urlpatterns = urlpatterns
         self.service_url = settings.MEDIAWIKI_URL
         self.access_perm = 'mediawiki.access_mediawiki'
-        self.service_ctrl_template = 'services/mediawiki/mediawiki_service_ctrl.html'
-    """
-    Overload base methods here to implement functionality
-    """
 
+    @property
+    def title(self):
+        return "Mediawiki"
+        
+    def service_active_for_user(self, user):
+        return user.has_perm(self.access_perm)
+        
     def render_services_ctrl(self, request):
         urls = self.Urls()
         urls.auth_activate = 'mediawiki:activate'
@@ -37,7 +40,6 @@ class MediawikiService(ServicesHook):
             'username': request.user.mediawiki.username if MediawikiTasks.has_account(request.user) else ''
         }, request=request)
 
-
 @hooks.register('services_hook')
-def register_mediawiki_service():
+def register_service():
     return MediawikiService()
