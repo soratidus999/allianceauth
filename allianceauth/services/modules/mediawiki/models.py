@@ -11,7 +11,7 @@ class MediawikiUser(models.Model):
     def __str__(self):
         return self.username
 
-	class Meta:
+    class Meta:
         permissions = (
             ("access_mediawiki", u"Can access the mediawiki service"),
         )
