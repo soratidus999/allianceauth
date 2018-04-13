@@ -4,7 +4,6 @@ import requests
 import logging
 from django.conf import settings
 
-
 logger = logging.getLogger(__name__)
 
 # Activate, Create service account
@@ -32,8 +31,7 @@ class MediawikiManager:
                 return request_login.cookies
         
         def add_user(username,password,email="",realname="", logout=True):
-                logger.debug("Adding mediawiki user with username #s, email %s, groups %s" % (
-		username, email, groups))
+                logger.debug("Adding mediawiki user with username #s, email %s, groups %s" % (username, email, groups))
                 username_clean = sanitize_username(username)
                 ## Create Token
                 request_create_token_data = {'action': 'query', 'format': 'json', 'meta': 'tokens', 'type': 'createaccount'}
