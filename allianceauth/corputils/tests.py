@@ -1,6 +1,7 @@
 from unittest import mock
 
 from django.test import TestCase
+from django.utils.timezone import now
 from allianceauth.tests.auth_utils import AuthUtils
 from .models import CorpStats, CorpMember
 from allianceauth.eveonline.models import EveCorporationInfo, EveAllianceInfo, EveCharacter
@@ -67,26 +68,81 @@ class CorpStatsUpdateTestCase(TestCase):
     def setUpTestData(cls):
         cls.user = AuthUtils.create_user('test')
         AuthUtils.add_main_character(cls.user, 'test character', '1', corp_id='2', corp_name='test_corp', corp_ticker='TEST', alliance_id='3', alliance_name='TEST')
+        cls.user.profile.refresh_from_db()
         cls.token = Token.objects.create(user=cls.user, access_token='a', character_id='1', character_name='test character', character_owner_hash='z')
         cls.corp = EveCorporationInfo.objects.create(corporation_id='2', corporation_name='test corp', corporation_ticker='TEST', member_count=1)
+        cls.character = EveCharacter.objects.create(character_name='another test character', character_id='2',
+                                                    corporation_id='2', corporation_name='test corp',
+                                                    corporation_ticker='TEST')
 
     def setUp(self):
         self.corpstats = CorpStats.objects.get_or_create(token=self.token, corp=self.corp)[0]
 
     @mock.patch('esi.clients.SwaggerClient')
+    def test_update_member_relations(self, SwaggerClient):
+        AuthUtils.disconnect_signals()
+
+        SwaggerClient.from_spec.return_value.Character.get_characters_character_id.return_value.result.return_value = {
+            'corporation_id': 2}
+        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_membertracking.return_value.result.return_value = [
+            {'character_id': 1, 'ship_type_id': 2, 'location_id': 3, 'logon_date': now(), 'logoff_date': now(),
+             'start_date': now()},
+            {'character_id': 2, 'ship_type_id': 2, 'location_id': 3, 'logon_date': now(), 'logoff_date': now(),
+             'start_date': now()}]
+        SwaggerClient.from_spec.return_value.Character.get_characters_names.return_value.result.return_value = [
+            {'character_id': 1, 'character_name': 'test character'}]
+        SwaggerClient.from_spec.return_value.Universe.get_universe_types_type_id.return_value.result.return_value = {
+            'name': 'test ship'}
+        SwaggerClient.from_spec.return_value.Universe.post_universe_names.return_value.result.return_value = [
+            {'name': 'test system'}]
+
+        co = CharacterOwnership.objects.create(character=self.character, user=self.user, owner_hash='a')
+
+        self.corpstats.update()
+        main = self.corpstats.members.get(character_id='1')
+        alt = self.corpstats.members.get(character_id='2')
+
+        self.assertTrue(main.registered and alt.registered)
+        self.assertTrue(main.is_main)
+        self.assertTrue(main.alts.filter(character_id=alt.character_id).exists())
+        self.assertTrue(main.alts.count() == 1)
+        self.assertEquals(main.main_character, self.user.profile.main_character)
+        self.assertFalse(alt.is_main)
+
+        co.delete()
+        self.corpstats.update()
+        main = self.corpstats.members.get(character_id='1')
+        alt = self.corpstats.members.get(character_id='2')
+
+        self.assertTrue(main.registered)
+        self.assertTrue(main.is_main)
+        self.assertFalse(alt.registered)
+        self.assertTrue(main.alts.count() == 0)
+        self.assertEquals(main.main_character, self.user.profile.main_character)
+        self.assertFalse(alt.is_main)
+
+        AuthUtils.connect_signals()
+
+    @mock.patch('esi.clients.SwaggerClient')
     def test_update_add_member(self, SwaggerClient):
         SwaggerClient.from_spec.return_value.Character.get_characters_character_id.return_value.result.return_value = {'corporation_id': 2}
-        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_members.return_value.result.return_value = [1]
+        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_membertracking.return_value.result.return_value = [
+            {'character_id': 1, 'ship_type_id': 2, 'location_id': 3, 'logon_date': now(), 'logoff_date': now(), 'start_date': now()}]
         SwaggerClient.from_spec.return_value.Character.get_characters_names.return_value.result.return_value = [{'character_id': 1, 'character_name': 'test character'}]
+        SwaggerClient.from_spec.return_value.Universe.get_universe_types_type_id.return_value.result.return_value = {'name': 'test ship'}
+        SwaggerClient.from_spec.return_value.Universe.post_universe_names.return_value.result.return_value = [{'name': 'test system'}]
+
         self.corpstats.update()
         self.assertTrue(CorpMember.objects.filter(character_id='1', character_name='test character', corpstats=self.corpstats).exists())
 
     @mock.patch('esi.clients.SwaggerClient')
     def test_update_remove_member(self, SwaggerClient):
-        CorpMember.objects.create(character_id='2', character_name='old test character', corpstats=self.corpstats)
+        CorpMember.objects.create(character_id='2', character_name='old test character', corpstats=self.corpstats, location_id=1, location_name='test', ship_type_id=1, ship_type_name='test', logoff_date=now(), logon_date=now(), start_date=now())
         SwaggerClient.from_spec.return_value.Character.get_characters_character_id.return_value.result.return_value = {'corporation_id': 2}
-        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_members.return_value.result.return_value = [1]
+        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_membertracking.return_value.result.return_value = [{'character_id': 1, 'ship_type_id': 2, 'location_id': 3, 'logon_date': now(), 'logoff_date': now(), 'start_date': now()}]
         SwaggerClient.from_spec.return_value.Character.get_characters_names.return_value.result.return_value = [{'character_id': 1, 'character_name': 'test character'}]
+        SwaggerClient.from_spec.return_value.Universe.get_universe_types_type_id.return_value.result.return_value = {'name': 'test ship'}
+        SwaggerClient.from_spec.return_value.Universe.post_universe_names.return_value.result.return_value = [{'name': 'test system'}]
         self.corpstats.update()
         self.assertFalse(CorpMember.objects.filter(character_id='2', corpstats=self.corpstats).exists())
 
@@ -94,7 +150,7 @@ class CorpStatsUpdateTestCase(TestCase):
     @mock.patch('esi.clients.SwaggerClient')
     def test_update_deleted_token(self, SwaggerClient, notify):
         SwaggerClient.from_spec.return_value.Character.get_characters_character_id.return_value.result.return_value = {'corporation_id': 2}
-        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_members.return_value.result.side_effect = TokenError()
+        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_membertracking.return_value.result.side_effect = TokenError()
         self.corpstats.update()
         self.assertFalse(CorpStats.objects.filter(corp=self.corp).exists())
         self.assertTrue(notify.called)
@@ -103,7 +159,7 @@ class CorpStatsUpdateTestCase(TestCase):
     @mock.patch('esi.clients.SwaggerClient')
     def test_update_http_forbidden(self, SwaggerClient, notify):
         SwaggerClient.from_spec.return_value.Character.get_characters_character_id.return_value.result.return_value = {'corporation_id': 2}
-        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_members.return_value.result.side_effect = HTTPForbidden(mock.Mock())
+        SwaggerClient.from_spec.return_value.Corporation.get_corporations_corporation_id_membertracking.return_value.result.side_effect = HTTPForbidden(mock.Mock())
         self.corpstats.update()
         self.assertFalse(CorpStats.objects.filter(corp=self.corp).exists())
         self.assertTrue(notify.called)
@@ -127,73 +183,61 @@ class CorpStatsPropertiesTestCase(TestCase):
         cls.corp = EveCorporationInfo.objects.create(corporation_id='2', corporation_name='test corp', corporation_ticker='TEST', member_count=1)
         cls.corpstats = CorpStats.objects.create(token=cls.token, corp=cls.corp)
         cls.character = EveCharacter.objects.create(character_name='another test character', character_id='4', corporation_id='2', corporation_name='test corp', corporation_ticker='TEST')
+        AuthUtils.disconnect_signals()
+        CharacterOwnership.objects.create(character=cls.character, user=cls.user, owner_hash='a')
+        AuthUtils.connect_signals()
 
     def test_member_count(self):
-        member = CorpMember.objects.create(corpstats=self.corpstats, character_id='1', character_name='test character')
+        member = CorpMember.objects.create(character_id='2', character_name='old test character', corpstats=self.corpstats,
+                                  location_id=1, location_name='test', ship_type_id=1, ship_type_name='test',
+                                  logoff_date=now(), logon_date=now(), start_date=now())
         self.assertEqual(self.corpstats.member_count, 1)
         member.delete()
         self.assertEqual(self.corpstats.member_count, 0)
 
     def test_user_count(self):
-        AuthUtils.disconnect_signals()
-        co = CharacterOwnership.objects.create(character=self.character, user=self.user, owner_hash='a')
-        AuthUtils.connect_signals()
-        CorpMember.objects.create(corpstats=self.corpstats, character_id='4', character_name='test character')
+        member = CorpMember.objects.create(character_id='4', character_name='another test character', corpstats=self.corpstats,
+                                  location_id=1, location_name='test', ship_type_id=1, ship_type_name='test',
+                                  logoff_date=now(), logon_date=now(), start_date=now(), main_character=self.character)
         self.assertEqual(self.corpstats.user_count, 1)
-        co.delete()
+        member.main_character = None
+        member.save()
+        self.corpstats.refresh_from_db()
         self.assertEqual(self.corpstats.user_count, 0)
 
     def test_registered_members(self):
-        AuthUtils.disconnect_signals()
-        co = CharacterOwnership.objects.create(character=self.character, user=self.user, owner_hash='a')
-        AuthUtils.connect_signals()
-        member = CorpMember.objects.create(corpstats=self.corpstats, character_id='4', character_name='test character')
+        member = CorpMember.objects.create(character_id='4', character_name='another test character', corpstats=self.corpstats,
+                                  location_id=1, location_name='test', ship_type_id=1, ship_type_name='test',
+                                  logoff_date=now(), logon_date=now(), start_date=now(), main_character=self.character, registered=True)
         self.assertIn(member, self.corpstats.registered_members)
-        self.assertEqual(self.corpstats.registered_member_count, 1)
-
-        co.delete()
-        self.assertNotIn(member, self.corpstats.registered_members)
-        self.assertEqual(self.corpstats.registered_member_count, 0)
-
-    def test_unregistered_members(self):
-        member = CorpMember.objects.create(corpstats=self.corpstats, character_id='4', character_name='test character')
-        self.corpstats.refresh_from_db()
-        self.assertIn(member, self.corpstats.unregistered_members)
-        self.assertEqual(self.corpstats.unregistered_member_count, 1)
-
-        AuthUtils.disconnect_signals()
-        CharacterOwnership.objects.create(character=self.character, user=self.user, owner_hash='a')
-        AuthUtils.connect_signals()
+        self.assertEquals(self.corpstats.registered_member_count, 1)
         self.assertNotIn(member, self.corpstats.unregistered_members)
-        self.assertEqual(self.corpstats.unregistered_member_count, 0)
+        self.assertEquals(self.corpstats.unregistered_member_count, 0)
+
+        member.registered = False
+        member.save()
+        self.corpstats.refresh_from_db()
+
+        self.assertNotIn(member, self.corpstats.registered_members)
+        self.assertEquals(self.corpstats.registered_member_count, 0)
+        self.assertIn(member, self.corpstats.unregistered_members)
+        self.assertEquals(self.corpstats.unregistered_member_count, 1)
 
     def test_mains(self):
         # test when is a main
-        member = CorpMember.objects.create(corpstats=self.corpstats, character_id='1', character_name='test character')
+        member = CorpMember.objects.create(character_id='4', character_name='another test character', corpstats=self.corpstats,
+                                  location_id=1, location_name='test', ship_type_id=1, ship_type_name='test',
+                                  logoff_date=now(), logon_date=now(), start_date=now(), main_character=self.character, is_main=True)
         self.assertIn(member, self.corpstats.mains)
         self.assertEqual(self.corpstats.main_count, 1)
 
-        # test when is an alt
-        old_main = self.user.profile.main_character
-        character = EveCharacter.objects.create(character_name='other character', character_id=10, corporation_name='test corp', corporation_id='2', corporation_ticker='TEST')
-        AuthUtils.disconnect_signals()
-        co = CharacterOwnership.objects.create(character=character, user=self.user, owner_hash='b')
-        self.user.profile.main_character = character
-        self.user.profile.save()
-        AuthUtils.connect_signals()
+        # test when is not a main
+        member.is_main = False
+        member.save()
+        self.corpstats.refresh_from_db()
+
         self.assertNotIn(member, self.corpstats.mains)
         self.assertEqual(self.corpstats.main_count, 0)
-
-        # test when no ownership
-        co.delete()
-        self.assertNotIn(member, self.corpstats.mains)
-        self.assertEqual(self.corpstats.main_count, 0)
-
-        # transaction won't roll this back
-        AuthUtils.disconnect_signals()
-        self.user.profile.main_character = old_main
-        self.user.profile.save()
-        AuthUtils.connect_signals()
 
     def test_logos(self):
         self.assertEqual(self.corpstats.corp_logo(size=128), 'https://image.eveonline.com/Corporation/2_128.png')
@@ -215,53 +259,7 @@ class CorpMemberTestCase(TestCase):
         cls.token = Token.objects.create(user=cls.user, access_token='a', character_id='1', character_name='test character', character_owner_hash='a')
         cls.corp = EveCorporationInfo.objects.create(corporation_id='2', corporation_name='test corp', corporation_ticker='TEST', member_count=1)
         cls.corpstats = CorpStats.objects.create(token=cls.token, corp=cls.corp)
-        cls.member = CorpMember.objects.create(corpstats=cls.corpstats, character_id='2', character_name='other test character')
-
-    def test_character(self):
-        self.assertIsNone(self.member.character)
-        character = EveCharacter.objects.create(character_id='2', character_name='other test character', corporation_id='2', corporation_name='test corp', corporation_ticker='TEST')
-        self.assertEqual(self.member.character, character)
-
-    def test_main_character(self):
-        AuthUtils.disconnect_signals()
-
-        # test when member.character is None
-        self.assertIsNone(self.member.main_character)
-
-        # test when member.character is not None but also not a main
-        character = EveCharacter.objects.create(character_id='2', character_name='other test character', corporation_id='2', corporation_name='test corp', corporation_ticker='TEST')
-        CharacterOwnership.objects.create(character=character, user=self.user, owner_hash='b')
-        self.member.refresh_from_db()
-        self.assertNotEqual(self.member.main_character, self.member.character)
-        self.assertEquals(self.member.main_character, self.user.profile.main_character)
-
-        # test when is main
-        old_main = self.user.profile.main_character
-        self.user.profile.main_character = character
-        self.user.profile.save()
-        self.member.refresh_from_db()
-        self.assertEqual(self.member.main_character, self.member.character)
-        self.assertEqual(self.user.profile.main_character, self.member.main_character)
-
-        # transaction won't roll this back
-        self.user.profile.main_character = old_main
-        self.user.profile.save()
-        AuthUtils.connect_signals()
-
-    def test_alts(self):
-        self.assertListEqual(self.member.alts, [])
-
-        character = EveCharacter.objects.create(character_id='2', character_name='other test character', corporation_id='2', corporation_name='test corp', corporation_ticker='TEST')
-        CharacterOwnership.objects.create(character=character, user=self.user, owner_hash='b')
-        self.assertIn(character, self.member.alts)
-
-    def test_registered(self):
-        self.assertFalse(self.member.registered)
-        AuthUtils.disconnect_signals()
-        character = EveCharacter.objects.create(character_id='2', character_name='other test character', corporation_id='2', corporation_name='test corp', corporation_ticker='TEST')
-        CharacterOwnership.objects.create(character=character, user=self.user, owner_hash='b')
-        self.assertTrue(self.member.registered)
-        AuthUtils.connect_signals()
+        cls.member = CorpMember.objects.create(corpstats=cls.corpstats, character_id='2', character_name='other test character', location_id=1, location_name='test', ship_type_id=1, ship_type_name='test', logoff_date=now(), logon_date=now(), start_date=now())
 
     def test_portrait_url(self):
         self.assertEquals(self.member.portrait_url(size=32), 'https://image.eveonline.com/Character/2_32.jpg')

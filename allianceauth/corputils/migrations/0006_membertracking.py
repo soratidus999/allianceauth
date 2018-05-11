@@ -81,7 +81,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='corpmember',
             name='ship_type_name',
-            field=models.CharField(default='None', max_length=36),
+            field=models.CharField(default='None', max_length=42),
             preserve_default=False,
         ),
         migrations.AddField(

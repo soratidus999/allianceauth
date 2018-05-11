@@ -164,7 +164,7 @@ class CorpMember(models.Model):
     location_name = models.CharField(max_length=78)  # this was counted
 
     ship_type_id = models.PositiveIntegerField()
-    ship_type_name = models.CharField(max_length=36)  # this was also counted
+    ship_type_name = models.CharField(max_length=42)  # this was also counted
 
     start_date = models.DateTimeField()
     logon_date = models.DateTimeField()
