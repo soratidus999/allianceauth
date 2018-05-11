@@ -23,7 +23,8 @@ class EveCharacterTestCase(TestCase):
             corporation_name='corp.name',
             corporation_ticker='corp.ticker',
             member_count=10,
-            alliance=None,
+            alliance_id=None,
+            alliance_name=None,
         )
 
         incorrect = EveCorporationInfo.objects.create(
@@ -31,7 +32,8 @@ class EveCharacterTestCase(TestCase):
             corporation_name='corp.name1',
             corporation_ticker='corp.ticker1',
             member_count=10,
-            alliance=None,
+            alliance_id=None,
+            alliance_name=None,
         )
 
         self.assertEqual(character.corporation, expected)

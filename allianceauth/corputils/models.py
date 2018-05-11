@@ -140,6 +140,14 @@ class CorpStats(models.Model):
         return self.mains.count()
 
     @property
+    def alts(self):
+        return EveCharacter.objects.filter(alt_corpmembers__corpstats=self)
+
+    @property
+    def alt_count(self):
+        return self.alts.count()
+
+    @property
     def mains(self):
         return self.members.filter(is_main=True)
 
@@ -150,8 +158,8 @@ class CorpStats(models.Model):
         return "https://image.eveonline.com/Corporation/%s_%s.png" % (self.corp.corporation_id, size)
 
     def alliance_logo(self, size=128):
-        if self.corp.alliance:
-            return "https://image.eveonline.com/Alliance/%s_%s.png" % (self.corp.alliance.alliance_id, size)
+        if self.corp.alliance_id:
+            return "https://image.eveonline.com/Alliance/%s_%s.png" % (self.corp.alliance_id, size)
         else:
             return "https://image.eveonline.com/Alliance/1_%s.png" % size
 

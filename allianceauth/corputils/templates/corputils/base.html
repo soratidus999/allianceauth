@@ -8,16 +8,30 @@
             <nav class="navbar navbar-default">
                 <div class="container-fluid">
                     <ul class="nav navbar-nav">
-                        <li class="dropdown">
-                            <a href="#" id="dLabel" class="dropdown-toggle" role="button" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">{% trans "Corporations" %}<span class="caret"></span></a>
-                            <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                                {% for corpstat in available %}
-                                    <li>
-                                        <a href="{% url 'corputils:view_corp' corpstat.corp.corporation_id %}">{{ corpstat.corp.corporation_name }}</a>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </li>
+                        {% if available_corps %}
+                            <li class="dropdown">
+                                <a href="#" id="dLabel" class="dropdown-toggle" role="button" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">{% trans "Corporations" %}<span class="caret"></span></a>
+                                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                                    {% for corpstat in available_corps %}
+                                        <li>
+                                            <a href="{% url 'corputils:view_corp' corpstat.corp.corporation_id %}">{{ corpstat.corp.corporation_name }}</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        {% endif %}
+                        {% if available_alliances %}
+                            <li class="dropdown">
+                                <a href="#" id="dLabel2" class="dropdown-toggle" role="button" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">{% trans "Alliances" %}<span class="caret"></span></a>
+                                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel2">
+                                    {% for alliance_id, alliance_name in available_alliances.items %}
+                                        <li>
+                                            <a href="{% url 'corputils:view_alliance' alliance_id %}">{{ alliance_name }}</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        {% endif %}
                         {% if perms.corputils.add_corpstats %}
                             <li>
                                 <a href="{% url 'corputils:add' %}">{% trans "Add" %}</a>

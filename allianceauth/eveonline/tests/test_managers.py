@@ -188,7 +188,7 @@ class EveCorporationManagerTestCase(TestCase):
         self.assertEqual(result.corporation_name, expected.name)
         self.assertEqual(result.corporation_ticker, expected.ticker)
         self.assertEqual(result.member_count, expected.members)
-        self.assertEqual(result.alliance, exp_alliance)
+        self.assertEqual(result.alliance_id, exp_alliance.alliance_id)
 
     @mock.patch('allianceauth.eveonline.managers.providers.provider')
     def test_create_corporation(self, provider):
@@ -205,7 +205,8 @@ class EveCorporationManagerTestCase(TestCase):
             corporation_name='corp.name',
             corporation_ticker='corp.ticker',
             member_count=10,
-            alliance=None,
+            alliance_id=None,
+            alliance_name=None,
         )
 
         expected = self.TestCorporation(id='2345', name='Test Corp', ticker='0BUGS',
@@ -218,4 +219,4 @@ class EveCorporationManagerTestCase(TestCase):
         self.assertEqual(result.corporation_id, expected.id)
         # These are the only updated props
         self.assertEqual(result.member_count, expected.members)
-        self.assertEqual(result.alliance, exp_alliance)
+        self.assertEqual(result.alliance_id, exp_alliance.alliance_id)

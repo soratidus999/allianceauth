@@ -75,17 +75,13 @@ class EveCorporationManager(models.Manager):
         return self.create_corporation_obj(self.provider.get_corporation(corp_id))
 
     def create_corporation_obj(self, corp: providers.Corporation):
-        from .models import EveAllianceInfo
-        try:
-            alliance = EveAllianceInfo.objects.get(alliance_id=corp.alliance_id)
-        except EveAllianceInfo.DoesNotExist:
-            alliance = None
         return self.create(
             corporation_id=corp.id,
             corporation_name=corp.name,
             corporation_ticker=corp.ticker,
             member_count=corp.members,
-            alliance=alliance,
+            alliance_id=corp.alliance_id,
+            alliance_name=corp.alliance.name,
         )
 
     def update_corporation(self, corp_id):

@@ -96,6 +96,9 @@ class EveAllianceForm(EveEntityForm):
 
 @admin.register(EveCorporationInfo)
 class EveCorporationInfoAdmin(admin.ModelAdmin):
+    list_display = ('corporation_name', 'alliance_name')
+    search_fields = ('corporation_name', 'alliance_name')
+
     def get_form(self, request, obj=None, **kwargs):
         if not obj or not obj.pk:
             return EveCorporationForm

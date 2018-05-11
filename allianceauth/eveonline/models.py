@@ -50,7 +50,8 @@ class EveCorporationInfo(models.Model):
     corporation_name = models.CharField(max_length=254, unique=True)
     corporation_ticker = models.CharField(max_length=254)
     member_count = models.IntegerField()
-    alliance = models.ForeignKey(EveAllianceInfo, blank=True, null=True, on_delete=models.SET_NULL)
+    alliance_id = models.CharField(max_length=254, blank=True, null=True)
+    alliance_name = models.CharField(max_length=254, blank=True, null=True)
 
     objects = EveCorporationManager()
     provider = EveCorporationProviderManager()
@@ -59,10 +60,8 @@ class EveCorporationInfo(models.Model):
         if corp is None:
             corp = self.provider.get_corporation(self.corporation_id)
         self.member_count = corp.members
-        try:
-            self.alliance = EveAllianceInfo.objects.get(alliance_id=corp.alliance_id)
-        except EveAllianceInfo.DoesNotExist:
-            self.alliance = None
+        self.alliance_id = corp.alliance_id
+        self.alliance_name = corp.alliance.name
         self.save()
         return self
 

@@ -19,10 +19,12 @@ class CorpStatsQuerySet(models.QuerySet):
             if user.has_perm('corputils.view_corp_corpstats'):
                 queries.append(models.Q(corp__corporation_id=char.corporation_id))
             if user.has_perm('corputils.view_alliance_corpstats'):
-                queries.append(models.Q(corp__alliance__alliance_id=char.alliance_id))
+                queries.append(models.Q(corp__alliance_id=char.alliance_id))
             if user.has_perm('corputils.view_state_corpstats'):
                 queries.append(models.Q(corp__in=user.profile.state.member_corporations.all()))
-                queries.append(models.Q(corp__alliance__in=user.profile.state.member_alliances.all()))
+                queries.append(models.Q(
+                    corp__alliance_id__in=user.profile.state.member_alliances.all().values_list('alliance_id',
+                                                                                                flat=True)))
             logger.debug('%s queries for user %s visible corpstats.' % (len(queries), user))
             # filter based on queries
             query = queries.pop()
@@ -31,7 +33,7 @@ class CorpStatsQuerySet(models.QuerySet):
             return self.filter(query)
         except AssertionError:
             logger.debug('User %s has no main character. No corpstats visible.' % user)
-            return self.none()        
+            return self.none()
 
 
 class CorpStatsManager(models.Manager):
@@ -40,3 +42,14 @@ class CorpStatsManager(models.Manager):
 
     def visible_to(self, user):
         return self.get_queryset().visible_to(user)
+
+    def alliances_visible_to(self, user):
+        alliances = []
+        if user.has_perm('corputils.view_all_corpstats'):
+            alliances = set(self.visible_to(user).values_list('corp__alliance_id', 'corp__alliance_name'))
+        elif user.profile.main_character:
+            if user.has_perm('corputils.view_alliance_corpstats') and user.profile.main_character.alliance_id:
+                alliances.append((user.profile.main_character.alliance_id, user.profile.main_character.alliance_name))
+            if user.has_perm('corputils.view_state_corpstats'):
+                alliances += [(a.alliance_id, a.alliance_name) for a in user.profile.state.member_alliances.all()]
+        return {a[0]: a[1] for a in alliances}

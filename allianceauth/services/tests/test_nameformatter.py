@@ -22,7 +22,8 @@ class NameFormatterTestCase(TestCase):
             corporation_name='corp name',
             corporation_ticker='TIKK',
             member_count=10,
-            alliance=self.alliance,
+            alliance_id=self.alliance.alliance_id,
+            alliance_name=self.alliance.alliance_name,
         )
 
         self.char = EveCharacter.objects.create(

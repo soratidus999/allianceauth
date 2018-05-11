@@ -10,7 +10,7 @@ from django.utils.translation import ugettext_lazy as _
 from esi.decorators import token_required
 from allianceauth.eveonline.models import EveCharacter, EveCorporationInfo
 
-from .models import CorpStats
+from .models import CorpStats, CorpMember
 
 SWAGGER_SPEC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swagger.json')
 
@@ -80,9 +80,9 @@ def corpstats_view(request, corp_id=None):
             pass
 
     context = {
-        'available': available,
+        'available_corps': available,
+        'available_alliances': CorpStats.objects.alliances_visible_to(request.user),
     }
-
     if corpstats:
         context.update({
             'corpstats': corpstats,
@@ -120,9 +120,40 @@ def corpstats_search(request):
                 results.append((corpstats, s))
         results = sorted(results, key=lambda x: x[1].character_name)
         context = {
-            'available': CorpStats.objects.visible_to(request.user),
+            'available_corps': CorpStats.objects.visible_to(request.user),
+            'available_alliances': CorpStats.objects.alliances_visible_to(request.user),
             'results': results,
             'search_string': search_string,
         }
         return render(request, 'corputils/search.html', context=context)
     return redirect('corputils:view')
+
+
+@login_required
+@user_passes_test(access_corpstats_test)
+def alliance_view(request, alliance_id=None):
+    # get available models
+    alliances = CorpStats.objects.alliances_visible_to(request.user)
+
+    # ensure we can see the requested model
+    if alliance_id not in alliances:
+        raise PermissionDenied('You do not have permission to view the selected alliance statistics module.')
+
+    # it's a lot easier to count member objects directly than try to walk reverse relations
+    alliance_members = CorpMember.objects.filter(corpstats__corp__alliance_id=alliance_id)
+
+    context = {
+        'available_corps': CorpStats.objects.visible_to(request.user),
+        'available_alliances': alliances,
+        'alliance_id': alliance_id,
+        'alliance_name': alliances[alliance_id],
+        'corpstats': CorpStats.objects.filter(corp__alliance_id=alliance_id).order_by('corp__corporation_name'),
+        'members': alliance_members.count(),
+        'registered': alliance_members.filter(registered=True).count(),
+        'unregistered': alliance_members.filter(registered=False).count(),
+        'mains': alliance_members.filter(is_main=True).count(),
+        'alts': alliance_members.filter(is_main=False).filter(main_character__isnull=False).count(),
+        'logo_url': "https://image.eveonline.com/Alliance/%s_128.png" % alliance_id,
+    }
+
+    return render(request, 'corputils/alliancestats.html', context=context)
