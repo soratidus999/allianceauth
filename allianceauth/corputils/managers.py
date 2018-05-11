@@ -6,9 +6,9 @@ logger = logging.getLogger(__name__)
 
 class CorpStatsQuerySet(models.QuerySet):
     def visible_to(self, user):
-        # superusers get all visible
-        if user.is_superuser:
-            logger.debug('Returning all corpstats for superuser %s.' % user)
+
+        if user.has_perm('corputils.view_all_corpstats'):  # superusers and users with this permission
+            logger.debug('Returning all corpstats for %s.' % user)
             return self
 
         try:

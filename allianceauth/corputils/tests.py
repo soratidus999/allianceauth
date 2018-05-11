@@ -73,15 +73,6 @@ class CorpStatsUpdateTestCase(TestCase):
     def setUp(self):
         self.corpstats = CorpStats.objects.get_or_create(token=self.token, corp=self.corp)[0]
 
-    def test_can_update(self):
-        self.assertTrue(self.corpstats.can_update(self.user))
-        self.corpstats.token.user = None
-        self.assertFalse(self.corpstats.can_update(self.user))
-        self.user.is_superuser = True
-        self.assertTrue(self.corpstats.can_update(self.user))
-        self.user.refresh_from_db()
-        self.corpstats.token.refresh_from_db()
-
     @mock.patch('esi.clients.SwaggerClient')
     def test_update_add_member(self, SwaggerClient):
         SwaggerClient.from_spec.return_value.Character.get_characters_character_id.return_value.result.return_value = {'corporation_id': 2}

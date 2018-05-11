@@ -26,6 +26,7 @@ class CorpStats(models.Model):
             ('view_corp_corpstats', 'Can view corp stats of their corporation.'),
             ('view_alliance_corpstats', 'Can view corp stats of members of their alliance.'),
             ('view_state_corpstats', 'Can view corp stats of members of their auth state.'),
+            ('view_all_corpstats', 'Can view all corp stats.'),
         )
         verbose_name = "corp stats"
         verbose_name_plural = "corp stats"
@@ -38,10 +39,14 @@ class CorpStats(models.Model):
     def update(self):
         try:
             c = self.token.get_esi_client(spec_file=SWAGGER_SPEC_PATH)
+
+            # make sure the token owner is still in this corp
             assert c.Character.get_characters_character_id(character_id=self.token.character_id).result()[
                        'corporation_id'] == int(self.corp.corporation_id)
-            member_ids = c.Corporation.get_corporations_corporation_id_members(
-                corporation_id=self.corp.corporation_id).result()
+
+            # get member tracking data and retrieve member ids for translation
+            tracking = c.Corporation.get_corporations_corporation_id_membertracking(corporation_id=self.corp.corporation_id).result()
+            member_ids = [t['character_id'] for t in tracking]
 
             # requesting too many ids per call results in a HTTP400
             # the swagger spec doesn't have a maxItems count
@@ -49,19 +54,39 @@ class CorpStats(models.Model):
             member_id_chunks = [member_ids[i:i + 255] for i in range(0, len(member_ids), 255)]
             member_name_chunks = [c.Character.get_characters_names(character_ids=id_chunk).result() for id_chunk in
                                   member_id_chunks]
-            member_list = {}
+            member_list = {t['character_id']: t for t in tracking}
             for name_chunk in member_name_chunks:
-                member_list.update({m['character_id']: m['character_name'] for m in name_chunk})
+                for name in name_chunk:
+                    member_list[name['character_id']].update(name)
 
-            # bulk create new member models
-            missing_members = [m_id for m_id in member_ids if
-                               not CorpMember.objects.filter(corpstats=self, character_id=m_id).exists()]
-            CorpMember.objects.bulk_create(
-                [CorpMember(character_id=m_id, character_name=member_list[m_id], corpstats=self) for m_id in
-                 missing_members])
+            # get ship and location names
+            for t in tracking:
+                t['ship_type_name'] = c.Universe.get_universe_types_type_id(type_id=t['ship_type_id']).result()['name']
+                locations = c.Universe.post_universe_names(ids=[t['location_id']]).result()
+                t['location_name'] = locations[0]['name'] if locations else ''  # might be a citadel we can't know about
+                member_list[t['character_id']].update(t)
 
             # purge old members
             self.members.exclude(character_id__in=member_ids).delete()
+
+            # bulk update and create new member models
+            for c_id, data in member_list.items():
+                ownership = CharacterOwnership.objects.filter(character__character_id=c_id)
+                data['registered'] = ownership.exists()
+                if data['registered']:
+                    owner = ownership[0]
+                    data['main_character'] = owner.user.profile.main_character
+                    alts = EveCharacter.objects.filter(character_ownership__user=owner.user)
+                else:
+                    data['main_character'] = None
+                    alts = []
+                if data['main_character']:
+                    data['is_main'] = data['character_id'] == int(data['main_character'].character_id)
+                    alts = alts.exclude(pk=data['main_character'].pk)
+                else:
+                    data['is_main'] = False
+                member, _ = CorpMember.objects.update_or_create(character_id=c_id, corpstats=self, defaults=data)
+                member.alts.set(alts)
 
             # update the timer
             self.save()
@@ -92,39 +117,34 @@ class CorpStats(models.Model):
 
     @property
     def user_count(self):
-        return len(set([m.main_character for m in self.members.all() if m.main_character]))
+        return self.members.filter(main_character__corporation_id=self.corp.corporation_id).count()
 
     @property
     def registered_member_count(self):
-        return len(self.registered_members)
+        return self.registered_members.count()
 
     @property
     def registered_members(self):
-        return self.members.filter(pk__in=[m.pk for m in self.members.all() if m.registered])
+        return self.members.filter(registered=True)
 
     @property
     def unregistered_member_count(self):
-        return self.member_count - self.registered_member_count
+        return self.unregistered_members.count()
 
     @property
     def unregistered_members(self):
-        return self.members.filter(pk__in=[m.pk for m in self.members.all() if not m.registered])
+        return self.members.filter(registered=False)
 
     @property
     def main_count(self):
-        return len(self.mains)
+        return self.mains.count()
 
     @property
     def mains(self):
-        return self.members.filter(pk__in=[m.pk for m in self.members.all() if
-                                           m.main_character and int(m.main_character.character_id) == int(
-                                               m.character_id)])
+        return self.members.filter(is_main=True)
 
     def visible_to(self, user):
         return CorpStats.objects.filter(pk=self.pk).visible_to(user).exists()
-
-    def can_update(self, user):
-        return self.token.user == user or self.visible_to(user)
 
     def corp_logo(self, size=128):
         return "https://image.eveonline.com/Corporation/%s_%s.png" % (self.corp.corporation_id, size)
@@ -138,7 +158,25 @@ class CorpStats(models.Model):
 
 class CorpMember(models.Model):
     character_id = models.PositiveIntegerField()
-    character_name = models.CharField(max_length=37)
+    character_name = models.CharField(max_length=37)  # allegedly
+
+    location_id = models.PositiveIntegerField()
+    location_name = models.CharField(max_length=78)  # this was counted
+
+    ship_type_id = models.PositiveIntegerField()
+    ship_type_name = models.CharField(max_length=36)  # this was also counted
+
+    start_date = models.DateTimeField()
+    logon_date = models.DateTimeField()
+    logoff_date = models.DateTimeField()
+
+    base_id = models.PositiveIntegerField(blank=True, null=True)
+
+    main_character = models.ForeignKey(EveCharacter, blank=True, null=True, on_delete=models.SET_NULL)
+    alts = models.ManyToManyField(EveCharacter, blank=True, related_name='alt_corpmembers')
+    registered = models.BooleanField(default=False)
+    is_main = models.BooleanField(default=False)
+
     corpstats = models.ForeignKey(CorpStats, on_delete=models.CASCADE, related_name='members')
 
     class Meta:
@@ -148,31 +186,6 @@ class CorpMember(models.Model):
 
     def __str__(self):
         return self.character_name
-
-    @property
-    def character(self):
-        try:
-            return EveCharacter.objects.get(character_id=self.character_id)
-        except EveCharacter.DoesNotExist:
-            return None
-
-    @property
-    def main_character(self):
-        try:
-            return self.character.character_ownership.user.profile.main_character
-        except (CharacterOwnership.DoesNotExist, UserProfile.DoesNotExist, AttributeError):
-            return None
-
-    @property
-    def alts(self):
-        if self.main_character:
-            return [co.character for co in self.main_character.character_ownership.user.character_ownerships.all()]
-        else:
-            return []
-
-    @property
-    def registered(self):
-        return CharacterOwnership.objects.filter(character__character_id=self.character_id).exists()
 
     def portrait_url(self, size=32):
         return "https://image.eveonline.com/Character/%s_%s.jpg" % (self.character_id, size)

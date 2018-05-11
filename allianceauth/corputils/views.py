@@ -24,7 +24,7 @@ def access_corpstats_test(user):
 @login_required
 @user_passes_test(access_corpstats_test)
 @permission_required('corputils.add_corpstats')
-@token_required(scopes='esi-corporations.read_corporation_membership.v1')
+@token_required(scopes='esi-corporations.track_members.v1')
 def corpstats_add(request, token):
     try:
         if EveCharacter.objects.filter(character_id=token.character_id).exists():
@@ -84,14 +84,8 @@ def corpstats_view(request, corp_id=None):
     }
 
     if corpstats:
-        members = corpstats.members.all()
-        mains = corpstats.mains.all()
-        unregistered = corpstats.unregistered_members.all()
         context.update({
             'corpstats': corpstats,
-            'members': members,
-            'mains': mains,
-            'unregistered': unregistered,
         })
 
     return render(request, 'corputils/corpstats.html', context=context)

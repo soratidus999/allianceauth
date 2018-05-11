@@ -4,7 +4,7 @@ This module is used to check the registration status of Corp members and to dete
 
 ## Installation
 
-Corp Stats requires access to the `esi-corporations.read_corporation_membership.v1` SSO scope. Update your application on the [EVE Developers site](https://developers.eveonline.com) to ensure it is available.
+Corp Stats requires access to the `esi-corporations.track_members.v1` SSO scope. Update your application on the [EVE Developers site](https://developers.eveonline.com) to ensure it is available.
 
 Add `'allianceauth.corputils',` to your `INSTALLED_APPS` list in your auth project's settings file. Run migrations to complete installation.
 
@@ -51,8 +51,11 @@ Three views are available:
  - main characters and their alts
  - registered characters and their main character
  - unregistered characters
+ - member tracking
 
 Each view contains a sortable and searchable table. The number of listings shown can be increased with a dropdown selector. Pages can be changed using the controls on the bottom-right of the table. Each list is searchable at the top-right. Tables can be re-ordered by clicking on column headings.
+
+Lists are constructed when the Corp Stats is updated: if it's been a while they may not be accurate.
 
 ![table control locations](/_static/images/features/corpstats/table_controls.png)
 
@@ -75,6 +78,12 @@ If registered, the character will also have a main character, main Corporation, 
 ![unregistered_list](/_static/images/features/corpstats/unregistered_list.png)
 
 This list contains all characters not registered on auth. Each character has a link to [zKillboard](https://zkillboard.com).
+
+#### Member Tracking
+
+![tracking_list](/_static/images/features/corpstats/tracking_list.png)
+
+This list contains location information on all members. Last known location, active ship, and logon/logoff are displayed. Information is accurate as of last update.
 
 ## Search View
 
