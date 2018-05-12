@@ -39,6 +39,9 @@
                                 <a class="btn btn-success" type="button" href="{% url 'corputils:update' corpstats.corp.corporation_id %}" title="Update Now">
                                     <span class="glyphicon glyphicon-refresh"></span>
                                 </a>
+                                <a class="btn btn-primary" type="button" href="{%  url 'corputils:export' corpstats.corp.corporation_id %}" title="Export">
+                                    <span class="glyphicon glyphicon-download-alt"></span>
+                                </a>
                         </div>
                         <div class="clearfix"></div>
                     </div>
