@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='corpmember',
             name='location_name',
-            field=models.CharField(default='None', max_length=78),
+            field=models.CharField(blank=True, null=True, max_length=78),
             preserve_default=False,
         ),
         migrations.AddField(

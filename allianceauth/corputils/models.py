@@ -169,7 +169,7 @@ class CorpMember(models.Model):
     character_name = models.CharField(max_length=37)  # allegedly
 
     location_id = models.PositiveIntegerField()
-    location_name = models.CharField(max_length=78)  # this was counted
+    location_name = models.CharField(blank=True, null=True, max_length=78)  # this was counted
 
     ship_type_id = models.PositiveIntegerField()
     ship_type_name = models.CharField(max_length=42)  # this was also counted

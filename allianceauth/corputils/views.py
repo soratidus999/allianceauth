@@ -191,7 +191,7 @@ def export_corpstats(request, corpstats, **_):
     for member in corpstats.members.all().order_by('character_name'):
         row = []
         for field in field_names:
-            row.append(str(getattr(member, field)))
+            row.append('' if getattr(member, field) is None else str(getattr(member, field)))
         for field in many_to_many_field_names:
             row.extend([str(a) for a in getattr(member, field).all()])
         writer.writerow(row)
