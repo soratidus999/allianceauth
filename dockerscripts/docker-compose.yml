@@ -11,6 +11,7 @@ services:
     environment:
       DB_HOST: mariadb
       REDIS_HOST: redis
+    command: /bin/sh gunicorn myauth.wsgi --workers=3 --timeout 120 -b 0.0.0.0:8000
     volumes:
       - "allianceauth-local:/home/allianceauth/myauth"
       - "nginx-data:/var/www/myauth/"
@@ -63,7 +64,9 @@ services:
       - allianceauth-network
 
   allianceauth-celery:
-    image: allianceauth/allianceauth-app:latest
+    build:
+      context: ./allianceauth-app
+    image: allianceauth-app
     network:
       - allianceauth-network
     command: /bin/sh -c "python manage.py celery"
@@ -73,7 +76,9 @@ services:
       - allianceauth-app
 
   allianceauth-celerybeat:
-    image: allianceauth/allianceauth-app:latest
+    build:
+      context: ./allianceauth-app
+    image: allianceauth-app
     network:
       - allianceauth-network
     command: /bin/sh -c "python manage.py celerybeat"
