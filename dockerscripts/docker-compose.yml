@@ -3,7 +3,9 @@ version: '3.2'
 services:
 
   allianceauth-app:
-    image: allianceauth/allianceauth-app:latest
+    build:
+      context: ./allianceauth-app
+    image: allianceauth-app
     container_name: allianceauth-app
     restart: always
     environment:
@@ -17,9 +19,11 @@ services:
       - redis
     networks:
       - allianceauth-network
-      
+
   allianceauth-nginx:
-    image: "allianceauth/allianceauth-nginx"
+    build:
+      context: ./allianceauth-nginx
+    image: allianceauth-nginx
     depends_on:
       - allianceauth-app
     container_name: allianceauth-nginx
@@ -29,12 +33,11 @@ services:
     volumes:
       - "nginx-data:/var/www/myauth"
     ports:
-      - "${NGINX_HTTP}:80"
-      - "${NGINX_HTTPS}:443"
+      - "8000:80"
     command: /bin/sh -c "envsubst '${NGINX_HOST}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
     networks:
       - allianceauth-network
-    
+
   redis:
     image: redis:3
     container_name: allianceauth-redis
@@ -44,21 +47,21 @@ services:
       - "redis-data:/data"
     networks:
       - allianceauth-network
-    
+
   mariadb:
     image: mariadb:10.3
     container_name: allianceauth-mariadb
     restart: always
     environment:
       MYSQL_RANDOM_ROOT_PASSWORD: "yes"
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: username
+      MYSQL_PASSWORD: password
+      MYSQL_DATABASE: alliance_auth
     volumes:
       - "mariadb-data:/var/lib/mysql"
     networks:
       - allianceauth-network
-  
+
   allianceauth-celery:
     image: allianceauth/allianceauth-app:latest
     network:
@@ -67,7 +70,8 @@ services:
     depends_on:
       - mariadb
       - redis
-  
+      - allianceauth-app
+
   allianceauth-celerybeat:
     image: allianceauth/allianceauth-app:latest
     network:
@@ -76,12 +80,13 @@ services:
     depends_on:
       - mariadb
       - redis
-      
+      - allianceauth-app
+
   volumes:
     allianceauth-local:
     nginx-data:
     redis-data:
     mariadb-data:
-  
+
   networks:
     allianceauth-network:
