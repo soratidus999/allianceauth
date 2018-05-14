@@ -13,8 +13,8 @@ services:
       REDIS_HOST: redis
     command: /bin/sh gunicorn myauth.wsgi --workers=3 --timeout 120 -b 0.0.0.0:8000
     volumes:
-      - "allianceauth-local:/home/allianceauth/myauth"
-      - "nginx-data:/var/www/myauth/"
+      - allianceauth-local:/home/allianceauth/myauth
+      - nginx-data:/var/www/static
     depends_on:
       - mariadb
       - redis
@@ -32,7 +32,7 @@ services:
     environment:
       - NGINX_HOST=${NGINX_HOST}
     volumes:
-      - "nginx-data:/var/www/myauth"
+      - nginx-data:/var/www/static
     ports:
       - "8000:80"
     command: /bin/sh -c "envsubst '${NGINX_HOST}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
@@ -45,7 +45,7 @@ services:
     command: redis-server --apendonly yes
     restart: always
     volumes:
-      - "redis-data:/data"
+      - redis-data:/data
     networks:
       - allianceauth-network
 
@@ -59,7 +59,7 @@ services:
       MYSQL_PASSWORD: password
       MYSQL_DATABASE: alliance_auth
     volumes:
-      - "mariadb-data:/var/lib/mysql"
+      - mariadb-data:/var/lib/mysql
     networks:
       - allianceauth-network
 
@@ -67,7 +67,7 @@ services:
     build:
       context: ./allianceauth-app
     image: allianceauth-app
-    network:
+    networks:
       - allianceauth-network
     command: /bin/sh -c "python manage.py celery"
     depends_on:
@@ -79,7 +79,7 @@ services:
     build:
       context: ./allianceauth-app
     image: allianceauth-app
-    network:
+    networks:
       - allianceauth-network
     command: /bin/sh -c "python manage.py celerybeat"
     depends_on:
@@ -87,11 +87,11 @@ services:
       - redis
       - allianceauth-app
 
-  volumes:
-    allianceauth-local:
-    nginx-data:
-    redis-data:
-    mariadb-data:
+volumes:
+  allianceauth-local:
+  nginx-data:
+  redis-data:
+  mariadb-data:
 
-  networks:
+networks:
     allianceauth-network:
