@@ -1,0 +1,53 @@
+version: '3.2'
+
+services:
+
+  allianceauth-app:
+    image: allianceauth/allianceauth-app:latest
+    container_name: allianceauth-app
+    restart: always
+    environment:
+      DB_HOST: mariadb
+      REDIS_HOST: redis
+    volumes:
+      - "allianceauth-local:/home/allianceauth/myauth"
+    depends_on:
+      - mariadb
+      - redis
+    networks:
+      - allianceauth-network
+      
+  nignx:
+    image: "nginx"
+    
+  redis:
+    image: redis:3
+    container_name: allianceauth-redis
+    command: redis-server --apendonly yes
+    restart: always
+    volumes:
+      - "redis-data:/data"
+    networks:
+      - allianceauth-network
+    
+  mariadb:
+    image: mariadb:10.3
+    container_name: allianceauth-mariadb
+    restart: always
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+    volumes:
+      - "mariadb-data:/var/lib/mysql"
+    networks:
+      - allianceauth-network
+      
+  volumes:
+    allianceauth-local:
+    redis-data:
+    mariadb-data:
+  
+  networks:
+    allianceauth-network:
