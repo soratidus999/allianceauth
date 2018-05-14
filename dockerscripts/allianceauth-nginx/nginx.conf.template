@@ -1,0 +1,17 @@
+server {
+    listen 80;
+    server_name example.com;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location /static {
+        alias /var/www/myauth/static;
+        autoindex off;
+    }
+
+    # Gunicorn config goes below
+    location / {
+        include proxy_params;
+        proxy_pass http://127.0.0.1:8000;
+    }
+}
