@@ -11,14 +11,29 @@ services:
       REDIS_HOST: redis
     volumes:
       - "allianceauth-local:/home/allianceauth/myauth"
+      - "nginx-data:/var/www/myauth/"
     depends_on:
       - mariadb
       - redis
     networks:
       - allianceauth-network
       
-  nignx:
-    image: "nginx"
+  allianceauth-nginx:
+    image: "allianceauth/allianceauth-nginx"
+    depends_on:
+      - allianceauth-app
+    container_name: allianceauth-nginx
+    restart: always
+    environment:
+      - NGINX_HOST=${NGINX_HOST}
+    volumes:
+      - "nginx-data:/var/www/myauth"
+    ports:
+      - "${NGINX_HTTP}:80"
+      - "${NGINX_HTTPS}:443"
+    command: /bin/sh -c "envsubst '${NGINX_HOST}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    networks:
+      - allianceauth-network
     
   redis:
     image: redis:3
@@ -43,9 +58,28 @@ services:
       - "mariadb-data:/var/lib/mysql"
     networks:
       - allianceauth-network
+  
+  allianceauth-celery:
+    image: allianceauth/allianceauth-app:latest
+    network:
+      - allianceauth-network
+    command: /bin/sh -c "python manage.py celery"
+    depends_on:
+      - mariadb
+      - redis
+  
+  allianceauth-celerybeat:
+    image: allianceauth/allianceauth-app:latest
+    network:
+      - allianceauth-network
+    command: /bin/sh -c "python manage.py celerybeat"
+    depends_on:
+      - mariadb
+      - redis
       
   volumes:
     allianceauth-local:
+    nginx-data:
     redis-data:
     mariadb-data:
   
