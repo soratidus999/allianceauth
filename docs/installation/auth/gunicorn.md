@@ -10,12 +10,12 @@ Check out the full [Gunicorn docs](http://docs.gunicorn.org/en/latest/index.html
 
 ```eval_rst
 .. note::
-    If you're using a virtual environment (and I would encourage you to do so when hosting Alliance Auth), activate it now. `source /path/to/venv/bin/activate`.
+    If you're using a virtual environment, activate it now. ``source /path/to/venv/bin/activate``.
 ```
 
 Install Gunicorn using pip, `pip install gunicorn`.
 
-In your `myauth` base directory, try running `gunicorn --bind 0.0.0.0:8000 myauth.wsgi`. You should be able to browse to http://yourserver:8000 and see your Alliance Auth installation running. Images and styling will be missing, but dont worry, your web server will provide them.
+In your `myauth` base directory, try running `gunicorn --bind 0.0.0.0:8000 myauth.wsgi`. You should be able to browse to http://yourserver:8000 and see your Alliance Auth installation running. Images and styling will be missing, but don't worry, your web server will provide them.
 
 Once you validate its running, you can kill the process with Ctrl+C and continue.
 
@@ -65,7 +65,7 @@ e.g. `command=/path/to/venv/bin/gunicorn myauth.wsgi`
 
 ### Starting via Supervisor
 
-Once you have your configuration all sorted, you will need to reload your supervisor config `sudo service supervisor reload` and then you can start the Gunicorn server via `sudo supervisorctl start aauth-gunicorn` (or whatever you renamed it to). You should see something like the following `aauth-gunicorn: started`. If you get some other message, you'll need to consult the Supervisor log files, usually found in `/var/log/supervisor/`.
+Once you have your configuration all sorted, you will need to reload your supervisor config `service supervisor reload` and then you can start the Gunicorn server via `supervisorctl start aauth-gunicorn` (or whatever you renamed it to). You should see something like the following `aauth-gunicorn: started`. If you get some other message, you'll need to consult the Supervisor log files, usually found in `/var/log/supervisor/`.
 
 
 ## Configuring your webserver
@@ -76,4 +76,4 @@ Any web server capable of proxy passing should be able to sit in front of Gunico
 ## Restarting Gunicorn
 In the past when you made changes you restarted the entire Apache server. This is no longer required. When you update or make configuration changes that ask you to restart Apache, instead you can just restart Gunicorn:
 
-`sudo supervisorctl restart myauth-gunicorn`, or the service name you chose for it.
+`supervisorctl restart myauth-gunicorn`, or the service name you chose for it.

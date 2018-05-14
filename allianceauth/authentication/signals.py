@@ -1,6 +1,6 @@
 import logging
 
-from .models import CharacterOwnership, UserProfile, get_guest_state, State
+from .models import CharacterOwnership, UserProfile, get_guest_state, State, OwnershipRecord
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.db.models.signals import pre_save, post_save, pre_delete, post_delete, m2m_changed
@@ -103,29 +103,23 @@ def record_character_ownership(sender, instance, created, *args, **kwargs):
 
 @receiver(pre_delete, sender=CharacterOwnership)
 def validate_main_character(sender, instance, *args, **kwargs):
-    if instance.user.profile.main_character == instance.character:
-        logger.info("Ownership of a main character {0} has been revoked. Resetting {1} main character.".format(
-            instance.character, instance.user))
-        # clear main character as user no longer owns them
-        instance.user.profile.main_character = None
-        instance.user.profile.save()
+    try:
+        if instance.user.profile.main_character == instance.character:
+            logger.info("Ownership of a main character {0} has been revoked. Resetting {1} main character.".format(
+                instance.character, instance.user))
+            # clear main character as user no longer owns them
+            instance.user.profile.main_character = None
+            instance.user.profile.save()
+    except UserProfile.DoesNotExist:
+        # a user is being deleted
+        pass
 
 
 @receiver(post_delete, sender=Token)
-def validate_main_character_token(sender, instance, *args, **kwargs):
-    if UserProfile.objects.filter(main_character__character_id=instance.character_id).exists():
-        logger.debug(
-            "Token for a main character {0} is being deleted. Ensuring there are valid tokens to refresh.".format(
-                instance.character_name))
-        profile = UserProfile.objects.get(main_character__character_id=instance.character_id)
-        if not Token.objects.filter(character_id=instance.character_id).filter(
-                user=profile.user).filter(refresh_token__isnull=False).exists():
-            logger.info(
-                "No remaining tokens to validate {0} ownership of main character {1}. Resetting main character.".format(
-                    profile.user, profile.main_character))
-            # clear main character as we can no longer verify ownership
-            profile.main_character = None
-            profile.save()
+def validate_ownership(sender, instance, *args, **kwargs):
+    if not Token.objects.filter(character_owner_hash=instance.character_owner_hash).filter(refresh_token__isnull=False).exists():
+        logger.info("No remaining tokens to validate ownership of character {0}. Revoking ownership.".format(instance.character_name))
+        CharacterOwnership.objects.filter(owner_hash=instance.character_owner_hash).delete()
 
 
 @receiver(pre_save, sender=User)
@@ -153,3 +147,15 @@ def check_state_on_character_update(sender, instance, *args, **kwargs):
     except UserProfile.DoesNotExist:
         logger.debug("Character {0} is not a main character. No state assessment required.".format(instance))
         pass
+
+
+@receiver(post_save, sender=CharacterOwnership)
+def ownership_record_creation(sender, instance, created, *args, **kwargs):
+    if created:
+        records = OwnershipRecord.objects.filter(owner_hash=instance.owner_hash).filter(character=instance.character)
+        if records.exists():
+            if records[0].user == instance.user:  # most recent record is sorted first
+                logger.debug("Already have ownership record of {0} by user {1}".format(instance.character, instance.user))
+                return
+        logger.info("Character {0} has a new owner {1}. Creating ownership record.".format(instance.character, instance.user))
+        OwnershipRecord.objects.create(user=instance.user, character=instance.character, owner_hash=instance.owner_hash)

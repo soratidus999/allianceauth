@@ -9,6 +9,7 @@ from requests.exceptions import HTTPError
 from allianceauth.services.hooks import NameFormatter
 from .manager import DiscordOAuthManager, DiscordApiBackoff
 from .models import DiscordUser
+from allianceauth.services.tasks import QueueOnce
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,8 @@ class DiscordTasks:
             return True
 
     @staticmethod
-    @shared_task(bind=True, name='discord.update_groups')
-    def update_groups(task_self, pk):
+    @shared_task(bind=True, name='discord.update_groups', base=QueueOnce)
+    def update_groups(self, pk):
         user = User.objects.get(pk=pk)
         logger.debug("Updating discord groups for user %s" % user)
         if DiscordTasks.has_account(user):
@@ -70,7 +71,7 @@ class DiscordTasks:
             except DiscordApiBackoff as bo:
                 logger.info("Discord group sync API back off for %s, "
                             "retrying in %s seconds" % (user, bo.retry_after_seconds))
-                raise task_self.retry(countdown=bo.retry_after_seconds)
+                raise self.retry(countdown=bo.retry_after_seconds)
             except HTTPError as e:
                 if e.response.status_code == 404:
                     try:
@@ -81,9 +82,9 @@ class DiscordTasks:
                     finally:
                         raise e
             except Exception as e:
-                if task_self:
+                if self:
                     logger.exception("Discord group sync failed for %s, retrying in 10 mins" % user)
-                    raise task_self.retry(countdown=60 * 10)
+                    raise self.retry(countdown=60 * 10)
                 else:
                     # Rethrow
                     raise e
@@ -99,8 +100,8 @@ class DiscordTasks:
             DiscordTasks.update_groups.delay(discord_user.user.pk)
 
     @staticmethod
-    @shared_task(bind=True, name='discord.update_nickname')
-    def update_nickname(task_self, pk):
+    @shared_task(bind=True, name='discord.update_nickname', base=QueueOnce)
+    def update_nickname(self, pk):
         user = User.objects.get(pk=pk)
         logger.debug("Updating discord nickname for user %s" % user)
         if DiscordTasks.has_account(user):
@@ -112,11 +113,11 @@ class DiscordTasks:
                 except DiscordApiBackoff as bo:
                     logger.info("Discord nickname update API back off for %s, "
                                 "retrying in %s seconds" % (user, bo.retry_after_seconds))
-                    raise task_self.retry(countdown=bo.retry_after_seconds)
+                    raise self.retry(countdown=bo.retry_after_seconds)
                 except Exception as e:
-                    if task_self:
+                    if self:
                         logger.exception("Discord nickname sync failed for %s, retrying in 10 mins" % user)
-                        raise task_self.retry(countdown=60 * 10)
+                        raise self.retry(countdown=60 * 10)
                     else:
                         # Rethrow
                         raise e

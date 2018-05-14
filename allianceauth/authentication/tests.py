@@ -1,19 +1,21 @@
 from unittest import mock
-
+from io import StringIO
 from django.test import TestCase
 from django.contrib.auth.models import User
 from allianceauth.tests.auth_utils import AuthUtils
-from .models import CharacterOwnership, UserProfile, State, get_guest_state
+from .models import CharacterOwnership, UserProfile, State, get_guest_state, OwnershipRecord
 from .backends import StateBackend
 from .tasks import check_character_ownership
 from allianceauth.eveonline.models import EveCharacter, EveCorporationInfo, EveAllianceInfo
 from esi.models import Token
+from esi.errors import IncompleteResponseError
 from allianceauth.authentication.decorators import main_character_required
 from django.test.client import RequestFactory
 from django.http.response import HttpResponse
 from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
 from django.shortcuts import reverse
+from django.core.management import call_command
 from urllib import parse
 
 MODULE_PATH = 'allianceauth.authentication'
@@ -90,6 +92,7 @@ class BackendTestCase(TestCase):
             corporation_ticker='CORP',
         )
         cls.user = AuthUtils.create_user('test_user', disconnect_signals=True)
+        cls.old_user = AuthUtils.create_user('old_user', disconnect_signals=True)
         AuthUtils.disconnect_signals()
         CharacterOwnership.objects.create(user=cls.user, character=cls.main_character, owner_hash='1')
         CharacterOwnership.objects.create(user=cls.user, character=cls.alt_character, owner_hash='2')
@@ -112,6 +115,14 @@ class BackendTestCase(TestCase):
         self.assertNotEqual(user, self.user)
         self.assertEqual(user.username, 'Unclaimed_Character')
         self.assertEqual(user.profile.main_character, self.unclaimed_character)
+
+    def test_authenticate_character_record(self):
+        t = Token(character_id=self.unclaimed_character.character_id, character_name=self.unclaimed_character.character_name, character_owner_hash='4')
+        record = OwnershipRecord.objects.create(user=self.old_user, character=self.unclaimed_character, owner_hash='4')
+        user = StateBackend().authenticate(t)
+        self.assertEqual(user, self.old_user)
+        self.assertTrue(CharacterOwnership.objects.filter(owner_hash='4', user=self.old_user).exists())
+        self.assertTrue(user.profile.main_character)
 
     def test_iterate_username(self):
         t = Token(character_id=self.unclaimed_character.character_id,
@@ -184,28 +195,6 @@ class CharacterOwnershipTestCase(TestCase):
         )
         self.user = User.objects.get(pk=self.user.pk)
         self.assertIsNone(self.user.profile.main_character)
-
-    @mock.patch('esi.models.Token.update_token_data')
-    def test_character_ownership_check(self, update_token_data):
-        t = Token.objects.create(
-            user=self.user,
-            character_id=self.character.character_id,
-            character_name=self.character.character_name,
-            character_owner_hash='1',
-        )
-        co = CharacterOwnership.objects.get(owner_hash='1')
-        check_character_ownership(co.owner_hash)
-        self.assertTrue(CharacterOwnership.objects.filter(owner_hash='1').exists())
-
-        t.character_owner_hash = '2'
-        t.save()
-        check_character_ownership(co.owner_hash)
-        self.assertFalse(CharacterOwnership.objects.filter(owner_hash='1').exists())
-
-        t.delete()
-        co = CharacterOwnership.objects.create(user=self.user, character=self.character, owner_hash='3')
-        check_character_ownership(co.owner_hash)
-        self.assertFalse(CharacterOwnership.objects.filter(owner_hash='3').exists())
 
 
 class StateTestCase(TestCase):
@@ -341,3 +330,73 @@ class StateTestCase(TestCase):
         self.user.save()
         self._refresh_user()
         self.assertEquals(self.user.profile.state, self.member_state)
+
+
+class CharacterOwnershipCheckTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = AuthUtils.create_user('test_user', disconnect_signals=True)
+        AuthUtils.add_main_character(cls.user, 'Test Character', '1', corp_id='1', alliance_id='1',
+                                     corp_name='Test Corp', alliance_name='Test Alliance')
+        cls.character = EveCharacter.objects.get(character_id='1')
+        cls.token = Token.objects.create(
+            user=cls.user,
+            character_id='1',
+            character_name='Test',
+            character_owner_hash='1',
+        )
+        cls.ownership = CharacterOwnership.objects.get(character=cls.character)
+
+    @mock.patch(MODULE_PATH + '.tasks.Token.update_token_data')
+    def test_no_change_owner_hash(self, update_token_data):
+        # makes sure the ownership isn't delete if owner hash hasn't changed
+        check_character_ownership(self.ownership)
+        self.assertTrue(CharacterOwnership.objects.filter(user=self.user).filter(character=self.character).exists())
+
+    @mock.patch(MODULE_PATH + '.tasks.Token.update_token_data')
+    def test_unable_to_update_token_data(self, update_token_data):
+        # makes sure ownerships and tokens aren't hellpurged when there's problems with the SSO servers
+        update_token_data.side_effect = IncompleteResponseError()
+        check_character_ownership(self.ownership)
+        self.assertTrue(CharacterOwnership.objects.filter(user=self.user).filter(character=self.character).exists())
+
+        update_token_data.side_effect = KeyError()
+        check_character_ownership(self.ownership)
+        self.assertTrue(CharacterOwnership.objects.filter(user=self.user).filter(character=self.character).exists())
+
+    @mock.patch(MODULE_PATH + '.tasks.Token.update_token_data')
+    @mock.patch(MODULE_PATH + '.tasks.Token.delete')
+    @mock.patch(MODULE_PATH + '.tasks.Token.objects.exists')
+    @mock.patch(MODULE_PATH + '.tasks.CharacterOwnership.objects.filter')
+    def test_owner_hash_changed(self, filter, exists, delete, update_token_data):
+        # makes sure the ownership is revoked when owner hash changes
+        filter.return_value.exists.return_value = False
+        check_character_ownership(self.ownership)
+        self.assertTrue(filter.return_value.delete.called)
+
+
+class ManagementCommandTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = AuthUtils.create_user('test user', disconnect_signals=True)
+        AuthUtils.add_main_character(cls.user, 'test character', '1', '2', 'test corp', 'test')
+        character = UserProfile.objects.get(user=cls.user).main_character
+        CharacterOwnership.objects.create(user=cls.user, character=character, owner_hash='test')
+
+    def setUp(self):
+        self.stdout = StringIO()
+
+    def test_ownership(self):
+        call_command('checkmains', stdout=self.stdout)
+        self.assertFalse(UserProfile.objects.filter(main_character__isnull=True).count())
+        self.assertNotIn(self.user.username, self.stdout.getvalue())
+        self.assertIn('All main characters', self.stdout.getvalue())
+
+    def test_no_ownership(self):
+        user = AuthUtils.create_user('v1 user', disconnect_signals=True)
+        AuthUtils.add_main_character(user, 'v1 character', '10', '20', 'test corp', 'test')
+        self.assertFalse(UserProfile.objects.filter(main_character__isnull=True).count())
+
+        call_command('checkmains', stdout=self.stdout)
+        self.assertEqual(UserProfile.objects.filter(main_character__isnull=True).count(), 1)
+        self.assertIn(user.username, self.stdout.getvalue())

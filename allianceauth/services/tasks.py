@@ -1,40 +1,39 @@
 import logging
 
-import redis
 from celery import shared_task
 from django.contrib.auth.models import User
 from .hooks import ServicesHook
+from celery_once import QueueOnce as BaseTask, AlreadyQueued
+from celery_once.helpers import now_unix
+from django.core.cache import cache
 
-REDIS_CLIENT = redis.Redis()
 
 logger = logging.getLogger(__name__)
 
 
-# http://loose-bits.com/2010/10/distributed-task-locking-in-celery.html
-def only_one(function=None, key="", timeout=None):
-    """Enforce only one celery task at a time."""
+class QueueOnce(BaseTask):
+    once = BaseTask.once
+    once['graceful'] = True
 
-    def _dec(run_func):
-        """Decorator."""
 
-        def _caller(*args, **kwargs):
-            """Caller."""
-            ret_value = None
-            have_lock = False
-            lock = REDIS_CLIENT.lock(key, timeout=timeout)
-            try:
-                have_lock = lock.acquire(blocking=False)
-                if have_lock:
-                    ret_value = run_func(*args, **kwargs)
-            finally:
-                if have_lock:
-                    lock.release()
+class DjangoBackend:
+    def __init__(self, settings):
+        pass
 
-            return ret_value
+    @staticmethod
+    def raise_or_lock(key, timeout):
+        now = now_unix()
+        result = cache.get(key)
+        if result:
+            remaining = int(result) - now
+            if remaining > 0:
+                raise AlreadyQueued(remaining)
+        else:
+            cache.set(key, now + timeout, timeout)
 
-        return _caller
-
-    return _dec(function) if function is not None else _dec
+    @staticmethod
+    def clear_lock(key):
+        return cache.delete(key)
 
 
 @shared_task(bind=True)
